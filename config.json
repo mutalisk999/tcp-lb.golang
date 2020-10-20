@@ -1,0 +1,25 @@
+{
+	"threads": 4,
+	"log": {
+        "logSetLevel": 10
+	},
+	"node": {
+		"listen": "",
+		"maxConn": 8192,
+		"timeoutRead": ""
+	},
+	"targets": [
+		{
+			"endpoint": "",
+			"maxConn": 4096,
+			"timeoutConn": "",
+			"timeoutRead": ""
+		},
+		{
+			"endpoint": "",
+			"maxConn": 4096,
+			"timeoutConn": "",
+			"timeoutRead": ""
+		}
+	]
+}
