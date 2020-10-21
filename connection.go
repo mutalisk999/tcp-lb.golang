@@ -146,6 +146,10 @@ func (l *LBConnectionPairMgr) GetTarget2NodePairCount() int {
 }
 
 func (l *LBConnectionPairMgr) AddConnectionPair(nodeConn *NodeConnection, targetConn *TargetConnection) {
+	if nodeConn == nil || targetConn == nil {
+		return
+	}
+
 	l.mutex.Lock()
 	delete(l.nodeConnToTargetConnMap, nodeConn)
 	delete(l.targetConnToNodeConnMap, targetConn)
@@ -155,6 +159,10 @@ func (l *LBConnectionPairMgr) AddConnectionPair(nodeConn *NodeConnection, target
 }
 
 func (l *LBConnectionPairMgr) RemoveByNodeConn(nodeConn *NodeConnection) {
+	if nodeConn == nil {
+		return
+	}
+
 	l.mutex.Lock()
 	targetConn, ok := l.nodeConnToTargetConnMap[nodeConn]
 	if ok {
@@ -165,6 +173,10 @@ func (l *LBConnectionPairMgr) RemoveByNodeConn(nodeConn *NodeConnection) {
 }
 
 func (l *LBConnectionPairMgr) RemoveByTargetConn(targetConn *TargetConnection) {
+	if targetConn == nil {
+		return
+	}
+
 	l.mutex.Lock()
 	nodeConn, ok := l.targetConnToNodeConnMap[targetConn]
 	if ok {

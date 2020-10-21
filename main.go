@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"runtime"
 )
 
 func initNode(c *Config) {
@@ -12,6 +13,7 @@ func initNode(c *Config) {
 
 func initTargetsMgr(c *Config) {
 	LBTargetsMgrP = new(LBTargetsMgr)
+	LBTargetsMgrP.Initialise()
 	for _, t := range c.Targets {
 		targetP := new(LBTarget)
 		targetP.Initialise(t.ConnEndPoint, t.MaxConn, t.TimeoutRead, t.TimeoutRead)
@@ -39,6 +41,12 @@ func main() {
 	eLogFile := "error.log"
 	InitLog(iLogFile, eLogFile, DEBUG)
 	LoadConfig(&LBConfig)
+
+	if LBConfig.Threads > 0 {
+		runtime.GOMAXPROCS(int(LBConfig.Threads))
+		Info.Printf("Running with %v threads", LBConfig.Threads)
+	}
+
 	initApplication(&LBConfig)
 
 	StartTcpProxy(&LBConfig)

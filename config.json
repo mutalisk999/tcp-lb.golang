@@ -4,22 +4,22 @@
         "logSetLevel": 10
 	},
 	"node": {
-		"listen": "",
+		"listen": "0.0.0.0:8080",
 		"maxConn": 8192,
-		"timeoutRead": ""
+		"timeoutRead": 60
 	},
 	"targets": [
 		{
 			"endpoint": "",
 			"maxConn": 4096,
-			"timeoutConn": "",
-			"timeoutRead": ""
+			"timeoutConn": 3,
+			"timeoutRead": 60
 		},
 		{
 			"endpoint": "",
 			"maxConn": 4096,
-			"timeoutConn": "",
-			"timeoutRead": ""
+			"timeoutConn": 3,
+			"timeoutRead": 60
 		}
 	]
 }

@@ -7,7 +7,6 @@ import (
 type LBNode struct {
 	mutex          *sync.RWMutex
 	endPointListen string
-	status         uint8
 	maxConnCount   uint32
 	connCount      uint32
 	timeoutRead    uint32
@@ -16,16 +15,42 @@ type LBNode struct {
 func (l *LBNode) Initialise(endPoint string, maxConn uint32, timeoutRead uint32) {
 	l.mutex = new(sync.RWMutex)
 	l.endPointListen = endPoint
-	l.status = 0
 	l.maxConnCount = maxConn
 	l.connCount = 0
 	l.timeoutRead = timeoutRead
 }
 
+func (l *LBNode) GetConnCount() uint32 {
+	var count uint32
+	l.mutex.Lock()
+	count = l.connCount
+	l.mutex.Unlock()
+	return count
+}
+
+func (l *LBNode) GetMaxConnCount() uint32 {
+	var maxCount uint32
+	l.mutex.Lock()
+	maxCount = l.maxConnCount
+	l.mutex.Unlock()
+	return maxCount
+}
+
+func (l *LBNode) IncConnCount() {
+	l.mutex.Lock()
+	l.connCount++
+	l.mutex.Unlock()
+}
+
+func (l *LBNode) DecConnCount() {
+	l.mutex.Lock()
+	l.connCount--
+	l.mutex.Unlock()
+}
+
 func (l *LBNode) Destroy() {
 	l.mutex = nil
 	l.endPointListen = ""
-	l.status = 0
 	l.maxConnCount = 0
 	l.connCount = 0
 	l.timeoutRead = 0
@@ -51,11 +76,30 @@ func (l *LBTarget) Initialise(endPoint string, maxConn uint32, timeoutConn uint3
 	l.timeoutRead = timeoutRead
 }
 
+func (l *LBTarget) GetConnCount() uint32 {
+	var count uint32
+	l.mutex.Lock()
+	count = l.connCount
+	l.mutex.Unlock()
+	return count
+}
+
+func (l *LBTarget) IncConnCount() {
+	l.mutex.Lock()
+	l.connCount++
+	l.mutex.Unlock()
+}
+
+func (l *LBTarget) DecConnCount() {
+	l.mutex.Lock()
+	l.connCount--
+	l.mutex.Unlock()
+}
+
 func (l *LBTarget) DumpToLBTargetCopy() LBTargetCopy {
 	var targetCopy LBTargetCopy
 	l.mutex.Lock()
 	targetCopy.EndPointConn = l.endPointConn
-	targetCopy.Status = l.status
 	targetCopy.MaxConnCount = l.maxConnCount
 	targetCopy.ConnCount = l.connCount
 	targetCopy.TimeoutConn = l.timeoutConn
