@@ -40,4 +40,10 @@ func main() {
 	InitLog(iLogFile, eLogFile, DEBUG)
 	LoadConfig(&LBConfig)
 	initApplication(&LBConfig)
+
+	StartTcpProxy(&LBConfig)
+	StartApiServer(&LBConfig)
+
+	quit := make(chan bool)
+	<-quit
 }
