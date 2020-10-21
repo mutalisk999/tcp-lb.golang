@@ -74,9 +74,10 @@ type TargetConnection struct {
 	sendBytes1m        uint64
 	sendBytes5m        uint64
 	sendBytes30m       uint64
+	targetId           string
 }
 
-func (c *TargetConnection) Initialise(conn *net.TCPConn, timeoutRead uint32) {
+func (c *TargetConnection) Initialise(conn *net.TCPConn, timeoutRead uint32, targetId string) {
 	c.mutex = new(sync.RWMutex)
 	c.conn = conn
 	c.timeoutRead = timeoutRead
@@ -90,6 +91,7 @@ func (c *TargetConnection) Initialise(conn *net.TCPConn, timeoutRead uint32) {
 	c.sendBytes1m = 0
 	c.sendBytes5m = 0
 	c.sendBytes30m = 0
+	c.targetId = targetId
 }
 
 func (c *TargetConnection) SetKeepAlive() {
@@ -112,7 +114,68 @@ func (c *TargetConnection) Destroy() {
 	c.sendBytes1m = 0
 	c.sendBytes5m = 0
 	c.sendBytes30m = 0
+	c.targetId = ""
 }
 
-var NodeConnToTargetConnMap sync.Map
-var TargetConnToNodeConnMap sync.Map
+type LBConnectionPairMgr struct {
+	mutex                   *sync.RWMutex
+	nodeConnToTargetConnMap map[*NodeConnection]*TargetConnection
+	targetConnToNodeConnMap map[*TargetConnection]*NodeConnection
+}
+
+func (l *LBConnectionPairMgr) Initialise() {
+	l.mutex = new(sync.RWMutex)
+	l.nodeConnToTargetConnMap = make(map[*NodeConnection]*TargetConnection)
+	l.targetConnToNodeConnMap = make(map[*TargetConnection]*NodeConnection)
+}
+
+func (l *LBConnectionPairMgr) GetNode2TargetPairCount() int {
+	var count int
+	l.mutex.Lock()
+	count = len(l.nodeConnToTargetConnMap)
+	l.mutex.Unlock()
+	return count
+}
+
+func (l *LBConnectionPairMgr) GetTarget2NodePairCount() int {
+	var count int
+	l.mutex.Lock()
+	count = len(l.targetConnToNodeConnMap)
+	l.mutex.Unlock()
+	return count
+}
+
+func (l *LBConnectionPairMgr) AddConnectionPair(nodeConn *NodeConnection, targetConn *TargetConnection) {
+	l.mutex.Lock()
+	delete(l.nodeConnToTargetConnMap, nodeConn)
+	delete(l.targetConnToNodeConnMap, targetConn)
+	l.nodeConnToTargetConnMap[nodeConn] = targetConn
+	l.targetConnToNodeConnMap[targetConn] = nodeConn
+	l.mutex.Unlock()
+}
+
+func (l *LBConnectionPairMgr) RemoveByNodeConn(nodeConn *NodeConnection) {
+	l.mutex.Lock()
+	targetConn, ok := l.nodeConnToTargetConnMap[nodeConn]
+	if ok {
+		delete(l.nodeConnToTargetConnMap, nodeConn)
+		delete(l.targetConnToNodeConnMap, targetConn)
+	}
+	l.mutex.Unlock()
+}
+
+func (l *LBConnectionPairMgr) RemoveByTargetConn(targetConn *TargetConnection) {
+	l.mutex.Lock()
+	nodeConn, ok := l.targetConnToNodeConnMap[targetConn]
+	if ok {
+		delete(l.nodeConnToTargetConnMap, nodeConn)
+		delete(l.targetConnToNodeConnMap, targetConn)
+	}
+	l.mutex.Unlock()
+}
+
+func (l *LBConnectionPairMgr) Destroy() {
+	l.mutex = nil
+	l.nodeConnToTargetConnMap = nil
+	l.targetConnToNodeConnMap = nil
+}

@@ -32,8 +32,6 @@ type Config struct {
 	Targets        []TargetConfig `json:"targets"`
 }
 
-var LBConfig Config
-
 func LoadConfig(cfg *Config) {
 	configFileName := "config.json"
 	if len(os.Args) > 1 {
