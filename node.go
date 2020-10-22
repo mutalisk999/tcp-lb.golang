@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"sync"
 )
 
@@ -9,31 +11,39 @@ type LBNode struct {
 	endPointListen string
 	maxConnCount   uint32
 	connCount      uint32
-	timeoutRead    uint32
+	timeout        uint32
 }
 
-func (l *LBNode) Initialise(endPoint string, maxConn uint32, timeoutRead uint32) {
+func (l *LBNode) Initialise(endPoint string, maxConn uint32, timeout uint32) {
 	l.mutex = new(sync.RWMutex)
 	l.endPointListen = endPoint
 	l.maxConnCount = maxConn
 	l.connCount = 0
-	l.timeoutRead = timeoutRead
+	l.timeout = timeout
 }
 
 func (l *LBNode) GetConnCount() uint32 {
 	var count uint32
-	l.mutex.Lock()
+	l.mutex.RLock()
 	count = l.connCount
-	l.mutex.Unlock()
+	l.mutex.RUnlock()
 	return count
 }
 
 func (l *LBNode) GetMaxConnCount() uint32 {
 	var maxCount uint32
-	l.mutex.Lock()
+	l.mutex.RLock()
 	maxCount = l.maxConnCount
-	l.mutex.Unlock()
+	l.mutex.RUnlock()
 	return maxCount
+}
+
+func (l *LBNode) GetConnInfoStr() string {
+	var str string
+	l.mutex.RLock()
+	str = fmt.Sprintf("[%d/%d]", l.connCount, l.maxConnCount)
+	l.mutex.RUnlock()
+	return str
 }
 
 func (l *LBNode) IncConnCount() {
@@ -53,7 +63,7 @@ func (l *LBNode) Destroy() {
 	l.endPointListen = ""
 	l.maxConnCount = 0
 	l.connCount = 0
-	l.timeoutRead = 0
+	l.timeout = 0
 }
 
 type LBTarget struct {
@@ -62,25 +72,23 @@ type LBTarget struct {
 	status       uint8
 	maxConnCount uint32
 	connCount    uint32
-	timeoutConn  uint32
-	timeoutRead  uint32
+	timeout      uint32
 }
 
-func (l *LBTarget) Initialise(endPoint string, maxConn uint32, timeoutConn uint32, timeoutRead uint32) {
+func (l *LBTarget) Initialise(endPoint string, maxConn uint32, timeout uint32) {
 	l.mutex = new(sync.RWMutex)
 	l.endPointConn = endPoint
 	l.status = 0
 	l.maxConnCount = maxConn
 	l.connCount = 0
-	l.timeoutConn = timeoutConn
-	l.timeoutRead = timeoutRead
+	l.timeout = timeout
 }
 
 func (l *LBTarget) GetConnCount() uint32 {
 	var count uint32
-	l.mutex.Lock()
+	l.mutex.RLock()
 	count = l.connCount
-	l.mutex.Unlock()
+	l.mutex.RUnlock()
 	return count
 }
 
@@ -98,13 +106,12 @@ func (l *LBTarget) DecConnCount() {
 
 func (l *LBTarget) DumpToLBTargetCopy() LBTargetCopy {
 	var targetCopy LBTargetCopy
-	l.mutex.Lock()
+	l.mutex.RLock()
 	targetCopy.EndPointConn = l.endPointConn
 	targetCopy.MaxConnCount = l.maxConnCount
 	targetCopy.ConnCount = l.connCount
-	targetCopy.TimeoutConn = l.timeoutConn
-	targetCopy.TimeoutRead = l.timeoutRead
-	l.mutex.Unlock()
+	targetCopy.Timeout = l.timeout
+	l.mutex.RUnlock()
 	return targetCopy
 }
 
@@ -114,8 +121,7 @@ func (l *LBTarget) Destroy() {
 	l.status = 0
 	l.maxConnCount = 0
 	l.connCount = 0
-	l.timeoutConn = 0
-	l.timeoutRead = 0
+	l.timeout = 0
 }
 
 type LBTargetCopy struct {
@@ -123,8 +129,7 @@ type LBTargetCopy struct {
 	Status       uint8
 	MaxConnCount uint32
 	ConnCount    uint32
-	TimeoutConn  uint32
-	TimeoutRead  uint32
+	Timeout      uint32
 }
 
 type LBTargetsMgr struct {
@@ -138,9 +143,9 @@ func (l *LBTargetsMgr) Initialise() {
 }
 
 func (l *LBTargetsMgr) Get(targetId string) *LBTarget {
-	l.mutex.Lock()
+	l.mutex.RLock()
 	v, ok := l.targetsMap[targetId]
-	l.mutex.Unlock()
+	l.mutex.RUnlock()
 	if !ok {
 		return nil
 	}
@@ -165,23 +170,42 @@ func (l *LBTargetsMgr) Set(targetId string, target *LBTarget) {
 
 func (l *LBTargetsMgr) DumpTargetsCopy() []LBTargetCopy {
 	var lbTargetsCopy []LBTargetCopy
-	l.mutex.Lock()
+	l.mutex.RLock()
 	for _, v := range l.targetsMap {
 		lbTargetsCopy = append(lbTargetsCopy, v.DumpToLBTargetCopy())
 	}
-	l.mutex.Unlock()
+	l.mutex.RUnlock()
 	return lbTargetsCopy
 }
 
 func (l *LBTargetsMgr) GetTargetsCount() int {
 	var count int
-	l.mutex.Lock()
+	l.mutex.RLock()
 	count = len(l.targetsMap)
-	l.mutex.Unlock()
+	l.mutex.RUnlock()
 	return count
 }
 
 func (l *LBTargetsMgr) Destroy() {
 	l.mutex = nil
 	l.targetsMap = nil
+}
+
+//for sort and sort by ConnCount
+type LBTargetCopys []LBTargetCopy
+
+func (s LBTargetCopys) Len() int           { return len(s) }
+func (s LBTargetCopys) Less(i, j int) bool { return s[i].ConnCount < s[j].ConnCount }
+func (s LBTargetCopys) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+func handleNodeData(g goroutine_mgr.Goroutine, a interface{}) {
+	defer g.OnQuit()
+
+	c := a.(*NodeConnection)
+
+}
+
+func handleTargetData(g goroutine_mgr.Goroutine, a interface{}) {
+	defer g.OnQuit()
+
 }

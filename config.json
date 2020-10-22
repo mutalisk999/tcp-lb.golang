@@ -6,20 +6,18 @@
 	"node": {
 		"listen": "0.0.0.0:8080",
 		"maxConn": 8192,
-		"timeoutRead": 60
+		"timeout": 60
 	},
 	"targets": [
 		{
 			"endpoint": "",
 			"maxConn": 4096,
-			"timeoutConn": 3,
-			"timeoutRead": 60
+			"timeout": 60
 		},
 		{
 			"endpoint": "",
 			"maxConn": 4096,
-			"timeoutConn": 3,
-			"timeoutRead": 60
+			"timeout": 60
 		}
 	]
 }

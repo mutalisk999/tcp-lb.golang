@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -14,14 +13,13 @@ type LogConfig struct {
 type NodeConfig struct {
 	ListenEndPoint string `json:"listen"`
 	MaxConn        uint32 `json:"maxConn"`
-	TimeoutRead    uint32 `json:"timeoutRead"`
+	Timeout        uint32 `json:"timeout"`
 }
 
 type TargetConfig struct {
 	ConnEndPoint string `json:"endpoint"`
 	MaxConn      uint32 `json:"maxConn"`
-	TimeoutConn  uint32 `json:"timeoutConn"`
-	TimeoutRead  uint32 `json:"timeoutRead"`
+	Timeout      uint32 `json:"timeout"`
 }
 
 type Config struct {
@@ -32,37 +30,37 @@ type Config struct {
 	Targets        []TargetConfig `json:"targets"`
 }
 
-func LoadConfig(cfg *Config) {
+func loadConfig(cfg *Config) {
 	configFileName := "config.json"
 	if len(os.Args) > 1 {
 		configFileName = os.Args[1]
 	}
 	configFileName, _ = filepath.Abs(configFileName)
-	log.Printf("Load Config: %v", configFileName)
+	Info.Printf("Load Config: %v", configFileName)
 
 	configFile, err := os.Open(configFileName)
 	if err != nil {
-		log.Fatal("Open File error: ", err.Error())
+		Error.Fatalf("Open File error: ", err.Error())
 	}
 	defer configFile.Close()
 	jsonParser := json.NewDecoder(configFile)
 	if err := jsonParser.Decode(&cfg); err != nil {
-		log.Fatal("Load Json Config error: ", err.Error())
+		Error.Fatalf("Load Json Config error: ", err.Error())
 	}
 
 	cfg.ConfigFileName = configFileName
 }
 
-func SaveConfig(cfg *Config) {
-	log.Printf("Save Config: %v", cfg.ConfigFileName)
+func saveConfig(cfg *Config) {
+	Info.Printf("Save Config: %v", cfg.ConfigFileName)
 
 	configFile, err := os.Open(cfg.ConfigFileName)
 	if err != nil {
-		log.Fatal("Open File error: ", err.Error())
+		Error.Fatalf("Open File error: ", err.Error())
 	}
 	defer configFile.Close()
 	jsonParser := json.NewEncoder(configFile)
 	if err := jsonParser.Encode(&cfg); err != nil {
-		log.Fatal("Save Json Config error: ", err.Error())
+		Error.Fatalf("Save Json Config error: ", err.Error())
 	}
 }

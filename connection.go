@@ -9,8 +9,7 @@ import (
 type NodeConnection struct {
 	mutex              *sync.RWMutex
 	conn               *net.TCPConn
-	timeoutRead        uint32
-	timerTriggerCount  uint64
+	timeout            uint32
 	periodStartTime1m  time.Time
 	periodStartTime5m  time.Time
 	periodStartTime30m time.Time
@@ -22,11 +21,10 @@ type NodeConnection struct {
 	sendBytes30m       uint64
 }
 
-func (c *NodeConnection) Initialise(conn *net.TCPConn, timeoutRead uint32) {
+func (c *NodeConnection) Initialise(conn *net.TCPConn, timeout uint32) {
 	c.mutex = new(sync.RWMutex)
 	c.conn = conn
-	c.timeoutRead = timeoutRead
-	c.timerTriggerCount = 0
+	c.timeout = timeout
 	c.periodStartTime1m = time.Now()
 	c.periodStartTime5m = time.Now()
 	c.periodStartTime30m = time.Now()
@@ -47,8 +45,7 @@ func (c *NodeConnection) SetKeepAlive() {
 func (c *NodeConnection) Destroy() {
 	c.mutex = nil
 	c.conn = nil
-	c.timeoutRead = 0
-	c.timerTriggerCount = 0
+	c.timeout = 0
 	c.periodStartTime1m = time.Now()
 	c.periodStartTime5m = time.Now()
 	c.periodStartTime30m = time.Now()
@@ -63,8 +60,7 @@ func (c *NodeConnection) Destroy() {
 type TargetConnection struct {
 	mutex              *sync.RWMutex
 	conn               *net.TCPConn
-	timeoutRead        uint32
-	timerTriggerCount  uint64
+	timeout            uint32
 	periodStartTime1m  time.Time
 	periodStartTime5m  time.Time
 	periodStartTime30m time.Time
@@ -77,11 +73,10 @@ type TargetConnection struct {
 	targetId           string
 }
 
-func (c *TargetConnection) Initialise(conn *net.TCPConn, timeoutRead uint32, targetId string) {
+func (c *TargetConnection) Initialise(conn *net.TCPConn, timeout uint32, targetId string) {
 	c.mutex = new(sync.RWMutex)
 	c.conn = conn
-	c.timeoutRead = timeoutRead
-	c.timerTriggerCount = 0
+	c.timeout = timeout
 	c.periodStartTime1m = time.Now()
 	c.periodStartTime5m = time.Now()
 	c.periodStartTime30m = time.Now()
@@ -103,8 +98,7 @@ func (c *TargetConnection) SetKeepAlive() {
 func (c *TargetConnection) Destroy() {
 	c.mutex = nil
 	c.conn = nil
-	c.timeoutRead = 0
-	c.timerTriggerCount = 0
+	c.timeout = 0
 	c.periodStartTime1m = time.Now()
 	c.periodStartTime5m = time.Now()
 	c.periodStartTime30m = time.Now()
@@ -131,17 +125,17 @@ func (l *LBConnectionPairMgr) Initialise() {
 
 func (l *LBConnectionPairMgr) GetNode2TargetPairCount() int {
 	var count int
-	l.mutex.Lock()
+	l.mutex.RLock()
 	count = len(l.nodeConnToTargetConnMap)
-	l.mutex.Unlock()
+	l.mutex.RUnlock()
 	return count
 }
 
 func (l *LBConnectionPairMgr) GetTarget2NodePairCount() int {
 	var count int
-	l.mutex.Lock()
+	l.mutex.RLock()
 	count = len(l.targetConnToNodeConnMap)
-	l.mutex.Unlock()
+	l.mutex.RUnlock()
 	return count
 }
 

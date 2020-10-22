@@ -1,14 +1,13 @@
 package main
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"runtime"
 )
 
 func initNode(c *Config) {
 	LBNodeP = new(LBNode)
-	LBNodeP.Initialise(c.Node.ListenEndPoint, c.Node.MaxConn, c.Node.TimeoutRead)
+	LBNodeP.Initialise(c.Node.ListenEndPoint, c.Node.MaxConn, c.Node.Timeout)
 }
 
 func initTargetsMgr(c *Config) {
@@ -16,11 +15,9 @@ func initTargetsMgr(c *Config) {
 	LBTargetsMgrP.Initialise()
 	for _, t := range c.Targets {
 		targetP := new(LBTarget)
-		targetP.Initialise(t.ConnEndPoint, t.MaxConn, t.TimeoutRead, t.TimeoutRead)
+		targetP.Initialise(t.ConnEndPoint, t.MaxConn, t.Timeout)
 
-		md5res := md5.Sum([]byte(t.ConnEndPoint))
-		targetId := hex.EncodeToString(md5res[:])
-
+		targetId := CaclTargetId(t.ConnEndPoint)
 		LBTargetsMgrP.Set(targetId, targetP)
 	}
 }
@@ -30,27 +27,33 @@ func initConnectionPairMgr() {
 	LBConnectionPairMgrP.Initialise()
 }
 
+func initGoroutineMgr() {
+	LBGoroutineManagerP = new(goroutine_mgr.GoroutineManager)
+	LBGoroutineManagerP.Initialise("global_goroutine_mgr")
+}
+
 func initApplication(c *Config) {
 	initNode(c)
 	initTargetsMgr(c)
 	initConnectionPairMgr()
+	initGoroutineMgr()
+
+	if LBConfig.Threads > 0 {
+		runtime.GOMAXPROCS(int(LBConfig.Threads))
+		Info.Printf("Running with %v threads", LBConfig.Threads)
+	}
 }
 
 func main() {
 	iLogFile := "info.log"
 	eLogFile := "error.log"
 	InitLog(iLogFile, eLogFile, DEBUG)
-	LoadConfig(&LBConfig)
 
-	if LBConfig.Threads > 0 {
-		runtime.GOMAXPROCS(int(LBConfig.Threads))
-		Info.Printf("Running with %v threads", LBConfig.Threads)
-	}
-
+	loadConfig(&LBConfig)
 	initApplication(&LBConfig)
 
-	StartTcpProxy(&LBConfig)
-	StartApiServer(&LBConfig)
+	LBGoroutineManagerP.GoroutineCreateP1("tcp_proxy_listener", startTcpProxy, &LBConfig)
+	LBGoroutineManagerP.GoroutineCreateP1("api_server", startApiServer, &LBConfig)
 
 	quit := make(chan bool)
 	<-quit
