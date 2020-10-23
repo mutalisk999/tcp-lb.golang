@@ -42,6 +42,22 @@ func (c *NodeConnection) SetKeepAlive() {
 	c.mutex.Unlock()
 }
 
+func (c *NodeConnection) GetConnection() *net.TCPConn {
+	var conn *net.TCPConn
+	c.mutex.Lock()
+	conn = c.conn
+	c.mutex.Unlock()
+	return conn
+}
+
+func (c *NodeConnection) GetTimeOut() uint32 {
+	var timeout uint32
+	c.mutex.Lock()
+	timeout = c.timeout
+	c.mutex.Unlock()
+	return timeout
+}
+
 func (c *NodeConnection) Destroy() {
 	c.mutex = nil
 	c.conn = nil

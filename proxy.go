@@ -57,8 +57,8 @@ func handleTcpProxyConn(g goroutine_mgr.Goroutine, a interface{}) {
 
 		LBConnectionPairMgrP.AddConnectionPair(&nodeConn, &targetConn)
 
-		LBGoroutineManagerP.GoroutineCreateP1("tcp_node_data", handleNodeData, &nodeConn)
-		LBGoroutineManagerP.GoroutineCreateP1("tcp_target_data", handleTargetData, &targetConn)
+		LBGoroutineManagerP.GoroutineCreateP2("tcp_node_data", handleNodeData, &nodeConn, &targetConn)
+		LBGoroutineManagerP.GoroutineCreateP2("tcp_target_data", handleTargetData, &nodeConn, &targetConn)
 	}
 }
 

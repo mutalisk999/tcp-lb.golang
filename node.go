@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"sync"
+	"time"
 )
 
 type LBNode struct {
@@ -198,14 +199,23 @@ func (s LBTargetCopys) Len() int           { return len(s) }
 func (s LBTargetCopys) Less(i, j int) bool { return s[i].ConnCount < s[j].ConnCount }
 func (s LBTargetCopys) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func handleNodeData(g goroutine_mgr.Goroutine, a interface{}) {
+func handleNodeData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 	defer g.OnQuit()
 
 	c := a.(*NodeConnection)
+	ct := b.(*TargetConnection)
+
+	conn := c.GetConnection()
+	timeout := c.GetTimeOut()
+
+	for {
+		_ = conn.SetDeadline(time.Now().Add(time.Duration(int64(timeout) * 1000 * 1000 * 1000)))
+
+	}
 
 }
 
-func handleTargetData(g goroutine_mgr.Goroutine, a interface{}) {
+func handleTargetData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 	defer g.OnQuit()
 
 }
