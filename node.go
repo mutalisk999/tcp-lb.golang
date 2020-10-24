@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
+	"io"
 	"sync"
 	"time"
 )
@@ -11,24 +11,16 @@ type LBNode struct {
 	mutex          *sync.RWMutex
 	endPointListen string
 	maxConnCount   uint32
-	connCount      uint32
 	timeout        uint32
+	accept         chan int
 }
 
 func (l *LBNode) Initialise(endPoint string, maxConn uint32, timeout uint32) {
 	l.mutex = new(sync.RWMutex)
 	l.endPointListen = endPoint
 	l.maxConnCount = maxConn
-	l.connCount = 0
 	l.timeout = timeout
-}
-
-func (l *LBNode) GetConnCount() uint32 {
-	var count uint32
-	l.mutex.RLock()
-	count = l.connCount
-	l.mutex.RUnlock()
-	return count
+	l.accept = make(chan int, l.maxConnCount)
 }
 
 func (l *LBNode) GetMaxConnCount() uint32 {
@@ -39,32 +31,24 @@ func (l *LBNode) GetMaxConnCount() uint32 {
 	return maxCount
 }
 
-func (l *LBNode) GetConnInfoStr() string {
-	var str string
-	l.mutex.RLock()
-	str = fmt.Sprintf("[%d/%d]", l.connCount, l.maxConnCount)
-	l.mutex.RUnlock()
-	return str
+func (l *LBNode) ProductNewConn() {
+	l.accept <- 0
 }
 
-func (l *LBNode) IncConnCount() {
-	l.mutex.Lock()
-	l.connCount++
-	l.mutex.Unlock()
-}
-
-func (l *LBNode) DecConnCount() {
-	l.mutex.Lock()
-	l.connCount--
-	l.mutex.Unlock()
+func (l *LBNode) ComsumeNewConn() {
+	<-l.accept
 }
 
 func (l *LBNode) Destroy() {
 	l.mutex = nil
 	l.endPointListen = ""
 	l.maxConnCount = 0
-	l.connCount = 0
 	l.timeout = 0
+	l.accept = nil
+}
+
+func (l *LBNode) GetConnCount() uint32 {
+	return uint32(LBConnectionPairMgrP.GetNode2TargetPairCount())
 }
 
 type LBTarget struct {
@@ -72,7 +56,6 @@ type LBTarget struct {
 	endPointConn string
 	status       uint8
 	maxConnCount uint32
-	connCount    uint32
 	timeout      uint32
 }
 
@@ -81,36 +64,17 @@ func (l *LBTarget) Initialise(endPoint string, maxConn uint32, timeout uint32) {
 	l.endPointConn = endPoint
 	l.status = 0
 	l.maxConnCount = maxConn
-	l.connCount = 0
 	l.timeout = timeout
-}
-
-func (l *LBTarget) GetConnCount() uint32 {
-	var count uint32
-	l.mutex.RLock()
-	count = l.connCount
-	l.mutex.RUnlock()
-	return count
-}
-
-func (l *LBTarget) IncConnCount() {
-	l.mutex.Lock()
-	l.connCount++
-	l.mutex.Unlock()
-}
-
-func (l *LBTarget) DecConnCount() {
-	l.mutex.Lock()
-	l.connCount--
-	l.mutex.Unlock()
 }
 
 func (l *LBTarget) DumpToLBTargetCopy() LBTargetCopy {
 	var targetCopy LBTargetCopy
 	l.mutex.RLock()
 	targetCopy.EndPointConn = l.endPointConn
+	targetCopy.Status = l.status
 	targetCopy.MaxConnCount = l.maxConnCount
-	targetCopy.ConnCount = l.connCount
+	targetId := CaclTargetId(targetCopy.EndPointConn)
+	targetCopy.ConnCount = LBConnectionPairMgrP.GetTargetConnCountByTargetId(targetId)
 	targetCopy.Timeout = l.timeout
 	l.mutex.RUnlock()
 	return targetCopy
@@ -121,7 +85,6 @@ func (l *LBTarget) Destroy() {
 	l.endPointConn = ""
 	l.status = 0
 	l.maxConnCount = 0
-	l.connCount = 0
 	l.timeout = 0
 }
 
@@ -208,14 +171,87 @@ func handleNodeData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 	conn := c.GetConnection()
 	timeout := c.GetTimeOut()
 
-	for {
-		_ = conn.SetDeadline(time.Now().Add(time.Duration(int64(timeout) * 1000 * 1000 * 1000)))
+	connTarget := ct.GetConnection()
+	timeoutTarget := c.GetTimeOut()
 
+	for {
+		var buf [4096]byte
+
+		_ = conn.SetReadDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
+		n, err := conn.Read(buf[0:])
+		if err != nil {
+			if err == io.EOF {
+				Info.Printf("Closed by remote: %s", conn.RemoteAddr().String())
+			} else {
+				Error.Printf("Read from %s error: %s", conn.RemoteAddr().String(), err.Error())
+			}
+			break
+		}
+		c.IncReadBytes(uint64(n))
+
+		_ = connTarget.SetWriteDeadline(time.Now().Add(time.Duration(timeoutTarget) * time.Second))
+		s, err := connTarget.Write(buf[0:n])
+		if err != nil {
+			Error.Printf("Write to %s error: %s", connTarget.RemoteAddr().String(), err.Error())
+			break
+		}
+		ct.IncWriteBytes(uint64(s))
 	}
 
+	LBConnectionPairMgrP.RemoveByNodeConn(c)
+
+	if conn != nil {
+		_ = conn.Close()
+	}
+
+	if connTarget != nil {
+		_ = connTarget.Close()
+	}
 }
 
 func handleTargetData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 	defer g.OnQuit()
 
+	c := a.(*NodeConnection)
+	ct := b.(*TargetConnection)
+
+	conn := c.GetConnection()
+	timeout := c.GetTimeOut()
+
+	connTarget := ct.GetConnection()
+	timeoutTarget := c.GetTimeOut()
+
+	for {
+		var buf [4096]byte
+
+		_ = connTarget.SetReadDeadline(time.Now().Add(time.Duration(timeoutTarget) * time.Second))
+		n, err := connTarget.Read(buf[0:])
+		if err != nil {
+			if err == io.EOF {
+				Info.Printf("Closed by remote: %s", connTarget.RemoteAddr().String())
+			} else {
+				Error.Printf("Read from %s error: %s", connTarget.RemoteAddr().String(), err.Error())
+			}
+			break
+		}
+		ct.IncReadBytes(uint64(n))
+
+		_ = conn.SetWriteDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
+		s, err := conn.Write(buf[0:n])
+		if err != nil {
+			Error.Printf("Write to %s error: %s", conn.RemoteAddr().String(), err.Error())
+			break
+		}
+		c.IncWriteBytes(uint64(s))
+	}
+
+	LBConnectionPairMgrP.RemoveByTargetConn(ct)
+
+	if conn != nil {
+		_ = conn.Close()
+	}
+
+	if connTarget != nil {
+		_ = connTarget.Close()
+	}
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
-	"log"
 	"net"
 	"sort"
 )
@@ -42,12 +41,11 @@ func handleTcpProxyConn(g goroutine_mgr.Goroutine, a interface{}) {
 
 	if connToTarget == nil {
 		Warn.Printf("Can not connect to any target endpoint, Close node connection")
-		Warn.Printf("Node Connection Close: %s", LBNodeP.GetConnInfoStr())
 		_ = conn.Close()
-		LBNodeP.DecConnCount()
+		LBNodeP.ComsumeNewConn()
+
 	} else {
 		targetId := CaclTargetId(targetCopy.EndPointConn)
-		LBTargetsMgrP.Get(targetId).IncConnCount()
 
 		var nodeConn NodeConnection
 		nodeConn.Initialise(conn, LBNodeP.timeout)
@@ -82,21 +80,13 @@ func startTcpProxy(g goroutine_mgr.Goroutine, a interface{}) {
 		if err != nil {
 			continue
 		}
-
-		LBNodeP.IncConnCount()
-		log.Printf("Node Connection New: %s", LBNodeP.GetConnInfoStr())
-		if LBNodeP.GetConnCount() > LBNodeP.GetMaxConnCount() {
-			Warn.Printf("Node Connection Close: %s", LBNodeP.GetConnInfoStr())
-			_ = conn.Close()
-			LBNodeP.DecConnCount()
-			continue
-		}
 		_ = conn.SetKeepAlive(true)
 
 		// TODO
 		//ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 		// banned and need to ban
 
+		LBNodeP.ProductNewConn()
 		LBGoroutineManagerP.GoroutineCreateP1("tcp_proxy_conn", handleTcpProxyConn, conn)
 	}
 }

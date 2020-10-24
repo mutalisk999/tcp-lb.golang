@@ -54,6 +54,7 @@ func main() {
 
 	LBGoroutineManagerP.GoroutineCreateP1("tcp_proxy_listener", startTcpProxy, &LBConfig)
 	LBGoroutineManagerP.GoroutineCreateP1("api_server", startApiServer, &LBConfig)
+	LBGoroutineManagerP.GoroutineCreateP0("maintain_loop", startMaintainLoop)
 
 	quit := make(chan bool)
 	<-quit

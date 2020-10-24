@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"net"
 	"sync"
 	"time"
@@ -16,9 +17,9 @@ type NodeConnection struct {
 	readBytes1m        uint64
 	readBytes5m        uint64
 	readBytes30m       uint64
-	sendBytes1m        uint64
-	sendBytes5m        uint64
-	sendBytes30m       uint64
+	writeBytes1m       uint64
+	writeBytes5m       uint64
+	writeBytes30m      uint64
 }
 
 func (c *NodeConnection) Initialise(conn *net.TCPConn, timeout uint32) {
@@ -31,9 +32,9 @@ func (c *NodeConnection) Initialise(conn *net.TCPConn, timeout uint32) {
 	c.readBytes1m = 0
 	c.readBytes5m = 0
 	c.readBytes30m = 0
-	c.sendBytes1m = 0
-	c.sendBytes5m = 0
-	c.sendBytes30m = 0
+	c.writeBytes1m = 0
+	c.writeBytes5m = 0
+	c.writeBytes30m = 0
 }
 
 func (c *NodeConnection) SetKeepAlive() {
@@ -44,18 +45,58 @@ func (c *NodeConnection) SetKeepAlive() {
 
 func (c *NodeConnection) GetConnection() *net.TCPConn {
 	var conn *net.TCPConn
-	c.mutex.Lock()
+	c.mutex.RLock()
 	conn = c.conn
-	c.mutex.Unlock()
+	c.mutex.RUnlock()
 	return conn
 }
 
 func (c *NodeConnection) GetTimeOut() uint32 {
 	var timeout uint32
-	c.mutex.Lock()
+	c.mutex.RLock()
 	timeout = c.timeout
-	c.mutex.Unlock()
+	c.mutex.RUnlock()
 	return timeout
+}
+
+func (c *NodeConnection) IncReadBytes(readn uint64) {
+	c.mutex.Lock()
+	c.readBytes1m += readn
+	c.readBytes5m += readn
+	c.readBytes30m += readn
+	c.mutex.Unlock()
+}
+
+func (c *NodeConnection) IncWriteBytes(writen uint64) {
+	c.mutex.Lock()
+	c.writeBytes1m += writen
+	c.writeBytes5m += writen
+	c.writeBytes30m += writen
+	c.mutex.Unlock()
+}
+
+func (c *NodeConnection) ResetReadWriteBytes1m() {
+	c.mutex.Lock()
+	c.periodStartTime1m = time.Now()
+	c.readBytes1m = 0
+	c.writeBytes1m = 0
+	c.mutex.Unlock()
+}
+
+func (c *NodeConnection) ResetReadWriteBytes5m() {
+	c.mutex.Lock()
+	c.periodStartTime5m = time.Now()
+	c.readBytes5m = 0
+	c.writeBytes5m = 0
+	c.mutex.Unlock()
+}
+
+func (c *NodeConnection) ResetReadWriteBytes30m() {
+	c.mutex.Lock()
+	c.periodStartTime30m = time.Now()
+	c.readBytes30m = 0
+	c.writeBytes30m = 0
+	c.mutex.Unlock()
 }
 
 func (c *NodeConnection) Destroy() {
@@ -68,9 +109,9 @@ func (c *NodeConnection) Destroy() {
 	c.readBytes1m = 0
 	c.readBytes5m = 0
 	c.readBytes30m = 0
-	c.sendBytes1m = 0
-	c.sendBytes5m = 0
-	c.sendBytes30m = 0
+	c.writeBytes1m = 0
+	c.writeBytes5m = 0
+	c.writeBytes30m = 0
 }
 
 type TargetConnection struct {
@@ -83,9 +124,9 @@ type TargetConnection struct {
 	readBytes1m        uint64
 	readBytes5m        uint64
 	readBytes30m       uint64
-	sendBytes1m        uint64
-	sendBytes5m        uint64
-	sendBytes30m       uint64
+	writeBytes1m       uint64
+	writeBytes5m       uint64
+	writeBytes30m      uint64
 	targetId           string
 }
 
@@ -99,15 +140,71 @@ func (c *TargetConnection) Initialise(conn *net.TCPConn, timeout uint32, targetI
 	c.readBytes1m = 0
 	c.readBytes5m = 0
 	c.readBytes30m = 0
-	c.sendBytes1m = 0
-	c.sendBytes5m = 0
-	c.sendBytes30m = 0
+	c.writeBytes1m = 0
+	c.writeBytes5m = 0
+	c.writeBytes30m = 0
 	c.targetId = targetId
 }
 
 func (c *TargetConnection) SetKeepAlive() {
 	c.mutex.Lock()
 	_ = c.conn.SetKeepAlive(true)
+	c.mutex.Unlock()
+}
+
+func (c *TargetConnection) GetConnection() *net.TCPConn {
+	var conn *net.TCPConn
+	c.mutex.Lock()
+	conn = c.conn
+	c.mutex.Unlock()
+	return conn
+}
+
+func (c *TargetConnection) GetTimeOut() uint32 {
+	var timeout uint32
+	c.mutex.Lock()
+	timeout = c.timeout
+	c.mutex.Unlock()
+	return timeout
+}
+
+func (c *TargetConnection) IncReadBytes(readn uint64) {
+	c.mutex.Lock()
+	c.readBytes1m += readn
+	c.readBytes5m += readn
+	c.readBytes30m += readn
+	c.mutex.Unlock()
+}
+
+func (c *TargetConnection) IncWriteBytes(writen uint64) {
+	c.mutex.Lock()
+	c.writeBytes1m += writen
+	c.writeBytes5m += writen
+	c.writeBytes30m += writen
+	c.mutex.Unlock()
+}
+
+func (c *TargetConnection) ResetReadWriteBytes1m() {
+	c.mutex.Lock()
+	c.periodStartTime1m = time.Now()
+	c.readBytes1m = 0
+	c.writeBytes1m = 0
+	c.mutex.Unlock()
+}
+
+func (c *TargetConnection) ResetReadWriteBytes5m() {
+	c.mutex.Lock()
+	c.periodStartTime5m = time.Now()
+	c.readBytes5m = 0
+	c.writeBytes5m = 0
+	c.mutex.Unlock()
+}
+
+func (c *TargetConnection) ResetReadWriteBytes30m() {
+	c.mutex.Lock()
+	c.periodStartTime30m = time.Now()
+	c.readBytes30m = 0
+	c.writeBytes30m = 0
 	c.mutex.Unlock()
 }
 
@@ -121,9 +218,9 @@ func (c *TargetConnection) Destroy() {
 	c.readBytes1m = 0
 	c.readBytes5m = 0
 	c.readBytes30m = 0
-	c.sendBytes1m = 0
-	c.sendBytes5m = 0
-	c.sendBytes30m = 0
+	c.writeBytes1m = 0
+	c.writeBytes5m = 0
+	c.writeBytes30m = 0
 	c.targetId = ""
 }
 
@@ -196,8 +293,74 @@ func (l *LBConnectionPairMgr) RemoveByTargetConn(targetConn *TargetConnection) {
 	l.mutex.Unlock()
 }
 
+func (l *LBConnectionPairMgr) GetTargetConnCountByTargetId(targetId string) uint32 {
+	var count uint32 = 0
+	l.mutex.RLock()
+	for k, _ := range l.targetConnToNodeConnMap {
+		if k.targetId == targetId {
+			count++
+		}
+	}
+	l.mutex.RUnlock()
+	return count
+}
+
+func (l *LBConnectionPairMgr) ResetReadWriteBytes1m() {
+	l.mutex.RLock()
+	for k, v := range l.nodeConnToTargetConnMap {
+		k.ResetReadWriteBytes1m()
+		v.ResetReadWriteBytes1m()
+	}
+	l.mutex.RUnlock()
+}
+
+func (l *LBConnectionPairMgr) ResetReadWriteBytes5m() {
+	l.mutex.RLock()
+	for k, v := range l.nodeConnToTargetConnMap {
+		k.ResetReadWriteBytes5m()
+		v.ResetReadWriteBytes5m()
+	}
+	l.mutex.RUnlock()
+}
+
+func (l *LBConnectionPairMgr) ResetReadWriteBytes30m() {
+	l.mutex.RLock()
+	for k, v := range l.nodeConnToTargetConnMap {
+		k.ResetReadWriteBytes30m()
+		v.ResetReadWriteBytes30m()
+	}
+	l.mutex.RUnlock()
+}
+
 func (l *LBConnectionPairMgr) Destroy() {
 	l.mutex = nil
 	l.nodeConnToTargetConnMap = nil
 	l.targetConnToNodeConnMap = nil
+}
+
+func startMaintainLoop(g goroutine_mgr.Goroutine) {
+	defer g.OnQuit()
+
+	maintainIntv := 60 * time.Second
+	maintainTimer := time.NewTimer(maintainIntv)
+
+	maintainIndex := uint64(0)
+
+	for {
+		select {
+		case <-maintainTimer.C:
+			if maintainIndex%1 == 0 {
+				LBConnectionPairMgrP.ResetReadWriteBytes1m()
+			}
+			if maintainIndex%5 == 0 {
+				LBConnectionPairMgrP.ResetReadWriteBytes5m()
+			}
+			if maintainIndex%30 == 0 {
+				LBConnectionPairMgrP.ResetReadWriteBytes30m()
+			}
+
+			maintainIndex++
+			maintainTimer.Reset(maintainIntv)
+		}
+	}
 }
