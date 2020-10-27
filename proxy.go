@@ -17,7 +17,7 @@ func handleTcpProxyConn(g goroutine_mgr.Goroutine, a interface{}) {
 	sort.Sort(LBTargetCopys(targetsCopy))
 
 	for _, t := range targetsCopy {
-		if t.Status != 0 {
+		if !t.Active {
 			continue
 		}
 		if t.ConnCount >= t.MaxConnCount {
@@ -41,11 +41,13 @@ func handleTcpProxyConn(g goroutine_mgr.Goroutine, a interface{}) {
 
 	if connToTarget == nil {
 		Warn.Printf("Can not connect to any target endpoint, Close node connection")
-		_ = conn.Close()
-		LBNodeP.ComsumeNewConn()
+		err := conn.Close()
+		if err == nil {
+			LBNodeP.ConsumeNewConn()
+		}
 
 	} else {
-		targetId := CaclTargetId(targetCopy.EndPointConn)
+		targetId := CalcTargetId(targetCopy.EndPointConn)
 
 		var nodeConn NodeConnection
 		nodeConn.Initialise(conn, LBNodeP.timeout)

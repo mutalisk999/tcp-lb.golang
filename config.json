@@ -12,12 +12,11 @@
 		{
 			"endpoint": "",
 			"maxConn": 4096,
-			"timeout": 60
-		},
-		{
-			"endpoint": "",
-			"maxConn": 4096,
-			"timeout": 60
+			"timeout": 60,
+			"active": true
 		}
-	]
+	],
+	"api": {
+		"listen": "0.0.0.0:9000"
+	}
 }

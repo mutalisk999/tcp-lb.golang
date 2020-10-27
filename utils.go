@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 )
 
-func CaclTargetId(targetEndPoint string) string {
+func CalcTargetId(targetEndPoint string) string {
 	md5res := md5.Sum([]byte(targetEndPoint))
 	targetId := hex.EncodeToString(md5res[:])
 	return targetId

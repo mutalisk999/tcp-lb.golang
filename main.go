@@ -15,9 +15,9 @@ func initTargetsMgr(c *Config) {
 	LBTargetsMgrP.Initialise()
 	for _, t := range c.Targets {
 		targetP := new(LBTarget)
-		targetP.Initialise(t.ConnEndPoint, t.MaxConn, t.Timeout)
+		targetP.Initialise(t.ConnEndPoint, t.Active, t.MaxConn, t.Timeout)
 
-		targetId := CaclTargetId(t.ConnEndPoint)
+		targetId := CalcTargetId(t.ConnEndPoint)
 		LBTargetsMgrP.Set(targetId, targetP)
 	}
 }

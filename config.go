@@ -20,6 +20,11 @@ type TargetConfig struct {
 	ConnEndPoint string `json:"endpoint"`
 	MaxConn      uint32 `json:"maxConn"`
 	Timeout      uint32 `json:"timeout"`
+	Active       bool   `json:"active"`
+}
+
+type ApiConfig struct {
+	ListenEndPoint string `json:"listen"`
 }
 
 type Config struct {
@@ -28,6 +33,7 @@ type Config struct {
 	Log            LogConfig      `json:"log"`
 	Node           NodeConfig     `json:"node"`
 	Targets        []TargetConfig `json:"targets"`
+	Api            ApiConfig      `json:"api"`
 }
 
 func loadConfig(cfg *Config) {

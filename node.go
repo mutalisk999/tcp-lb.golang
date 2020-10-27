@@ -15,12 +15,28 @@ type LBNode struct {
 	accept         chan int
 }
 
+type LBNodeCopy struct {
+	EndPointListen string `json:"listen"`
+	MaxConnCount   uint32 `json:"maxConn"`
+	Timeout        uint32 `json:"timeout"`
+}
+
 func (l *LBNode) Initialise(endPoint string, maxConn uint32, timeout uint32) {
 	l.mutex = new(sync.RWMutex)
 	l.endPointListen = endPoint
 	l.maxConnCount = maxConn
 	l.timeout = timeout
 	l.accept = make(chan int, l.maxConnCount)
+}
+
+func (l *LBNode) DumpToLBNodeCopy() LBNodeCopy {
+	var nodeCopy LBNodeCopy
+	l.mutex.RLock()
+	nodeCopy.EndPointListen = l.endPointListen
+	nodeCopy.MaxConnCount = l.maxConnCount
+	nodeCopy.Timeout = l.timeout
+	l.mutex.RUnlock()
+	return nodeCopy
 }
 
 func (l *LBNode) GetMaxConnCount() uint32 {
@@ -35,7 +51,7 @@ func (l *LBNode) ProductNewConn() {
 	l.accept <- 0
 }
 
-func (l *LBNode) ComsumeNewConn() {
+func (l *LBNode) ConsumeNewConn() {
 	<-l.accept
 }
 
@@ -54,26 +70,66 @@ func (l *LBNode) GetConnCount() uint32 {
 type LBTarget struct {
 	mutex        *sync.RWMutex
 	endPointConn string
+	active       bool
 	status       uint8
 	maxConnCount uint32
 	timeout      uint32
 }
 
-func (l *LBTarget) Initialise(endPoint string, maxConn uint32, timeout uint32) {
+func (l *LBTarget) Initialise(endPoint string, active bool, maxConn uint32, timeout uint32) {
 	l.mutex = new(sync.RWMutex)
 	l.endPointConn = endPoint
+	l.active = active
 	l.status = 0
 	l.maxConnCount = maxConn
 	l.timeout = timeout
+}
+
+func (l *LBTarget) GetActive() bool {
+	var active bool
+	l.mutex.RLock()
+	active = l.active
+	l.mutex.RUnlock()
+	return active
+}
+
+func (l *LBTarget) SetActive(active bool) {
+	l.mutex.Lock()
+	l.active = active
+	l.mutex.Unlock()
+}
+
+func (l *LBTarget) GetStatus() uint8 {
+	var status uint8
+	l.mutex.RLock()
+	status = l.status
+	l.mutex.RUnlock()
+	return status
+}
+
+func (l *LBTarget) SetStatus(status uint8) {
+	l.mutex.Lock()
+	l.status = status
+	l.mutex.Unlock()
+}
+
+func (l *LBTarget) Update(endPoint string, active bool, maxConn uint32, timeout uint32) {
+	l.mutex.Lock()
+	l.endPointConn = endPoint
+	l.active = active
+	l.maxConnCount = maxConn
+	l.timeout = timeout
+	l.mutex.Unlock()
 }
 
 func (l *LBTarget) DumpToLBTargetCopy() LBTargetCopy {
 	var targetCopy LBTargetCopy
 	l.mutex.RLock()
 	targetCopy.EndPointConn = l.endPointConn
+	targetCopy.Active = l.active
 	targetCopy.Status = l.status
 	targetCopy.MaxConnCount = l.maxConnCount
-	targetId := CaclTargetId(targetCopy.EndPointConn)
+	targetId := CalcTargetId(targetCopy.EndPointConn)
 	targetCopy.ConnCount = LBConnectionPairMgrP.GetTargetConnCountByTargetId(targetId)
 	targetCopy.Timeout = l.timeout
 	l.mutex.RUnlock()
@@ -83,17 +139,19 @@ func (l *LBTarget) DumpToLBTargetCopy() LBTargetCopy {
 func (l *LBTarget) Destroy() {
 	l.mutex = nil
 	l.endPointConn = ""
+	l.active = false
 	l.status = 0
 	l.maxConnCount = 0
 	l.timeout = 0
 }
 
 type LBTargetCopy struct {
-	EndPointConn string
-	Status       uint8
-	MaxConnCount uint32
-	ConnCount    uint32
-	Timeout      uint32
+	EndPointConn string `json:"listen"`
+	Active       bool   `json:"active"`
+	Status       uint8  `json:"status"`
+	MaxConnCount uint32 `json:"maxConn"`
+	ConnCount    uint32 `json:"connCount"`
+	Timeout      uint32 `json:"timeout"`
 }
 
 type LBTargetsMgr struct {
@@ -201,7 +259,10 @@ func handleNodeData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 	LBConnectionPairMgrP.RemoveByNodeConn(c)
 
 	if conn != nil {
-		_ = conn.Close()
+		err := conn.Close()
+		if err == nil {
+			LBNodeP.ConsumeNewConn()
+		}
 	}
 
 	if connTarget != nil {
@@ -248,7 +309,10 @@ func handleTargetData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 	LBConnectionPairMgrP.RemoveByTargetConn(ct)
 
 	if conn != nil {
-		_ = conn.Close()
+		err := conn.Close()
+		if err == nil {
+			LBNodeP.ConsumeNewConn()
+		}
 	}
 
 	if connTarget != nil {

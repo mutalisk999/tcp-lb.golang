@@ -22,6 +22,19 @@ type NodeConnection struct {
 	writeBytes30m      uint64
 }
 
+type NodeConnectionCopy struct {
+	Timeout            uint32
+	PeriodStartTime1m  time.Time
+	PeriodStartTime5m  time.Time
+	PeriodStartTime30m time.Time
+	ReadBytes1m        uint64
+	ReadBytes5m        uint64
+	ReadBytes30m       uint64
+	WriteBytes1m       uint64
+	WriteBytes5m       uint64
+	WriteBytes30m      uint64
+}
+
 func (c *NodeConnection) Initialise(conn *net.TCPConn, timeout uint32) {
 	c.mutex = new(sync.RWMutex)
 	c.conn = conn
@@ -57,6 +70,23 @@ func (c *NodeConnection) GetTimeOut() uint32 {
 	timeout = c.timeout
 	c.mutex.RUnlock()
 	return timeout
+}
+
+func (c *NodeConnection) DumpToNodeConnectionCopy() NodeConnectionCopy {
+	var connCopy NodeConnectionCopy
+	c.mutex.RLock()
+	connCopy.Timeout = c.timeout
+	connCopy.PeriodStartTime1m = c.periodStartTime1m
+	connCopy.PeriodStartTime5m = c.periodStartTime5m
+	connCopy.PeriodStartTime30m = c.periodStartTime30m
+	connCopy.ReadBytes1m = c.readBytes1m
+	connCopy.ReadBytes5m = c.readBytes5m
+	connCopy.ReadBytes30m = c.readBytes30m
+	connCopy.WriteBytes1m = c.writeBytes1m
+	connCopy.WriteBytes5m = c.writeBytes5m
+	connCopy.WriteBytes30m = c.writeBytes30m
+	c.mutex.RUnlock()
+	return connCopy
 }
 
 func (c *NodeConnection) IncReadBytes(readn uint64) {
@@ -130,6 +160,20 @@ type TargetConnection struct {
 	targetId           string
 }
 
+type TargetConnectionCopy struct {
+	Timeout            uint32
+	PeriodStartTime1m  time.Time
+	PeriodStartTime5m  time.Time
+	PeriodStartTime30m time.Time
+	ReadBytes1m        uint64
+	ReadBytes5m        uint64
+	ReadBytes30m       uint64
+	WriteBytes1m       uint64
+	WriteBytes5m       uint64
+	WriteBytes30m      uint64
+	TargetId           string
+}
+
 func (c *TargetConnection) Initialise(conn *net.TCPConn, timeout uint32, targetId string) {
 	c.mutex = new(sync.RWMutex)
 	c.conn = conn
@@ -166,6 +210,24 @@ func (c *TargetConnection) GetTimeOut() uint32 {
 	timeout = c.timeout
 	c.mutex.Unlock()
 	return timeout
+}
+
+func (c *TargetConnection) DumpToTargetConnectionCopy() TargetConnectionCopy {
+	var connCopy TargetConnectionCopy
+	c.mutex.Lock()
+	connCopy.Timeout = c.timeout
+	connCopy.PeriodStartTime1m = c.periodStartTime1m
+	connCopy.PeriodStartTime5m = c.periodStartTime5m
+	connCopy.PeriodStartTime30m = c.periodStartTime30m
+	connCopy.ReadBytes1m = c.readBytes1m
+	connCopy.ReadBytes5m = c.readBytes5m
+	connCopy.ReadBytes30m = c.readBytes30m
+	connCopy.WriteBytes1m = c.writeBytes1m
+	connCopy.WriteBytes5m = c.writeBytes5m
+	connCopy.WriteBytes30m = c.writeBytes30m
+	connCopy.TargetId = c.targetId
+	c.mutex.Unlock()
+	return connCopy
 }
 
 func (c *TargetConnection) IncReadBytes(readn uint64) {
@@ -303,6 +365,28 @@ func (l *LBConnectionPairMgr) GetTargetConnCountByTargetId(targetId string) uint
 	}
 	l.mutex.RUnlock()
 	return count
+}
+
+func (l *LBConnectionPairMgr) GetTargetConnPairsByTargetId(targetId string) map[*TargetConnection]*NodeConnection {
+	connPair := make(map[*TargetConnection]*NodeConnection)
+	l.mutex.RLock()
+	for k, v := range l.targetConnToNodeConnMap {
+		if k.targetId == targetId {
+			connPair[k] = v
+		}
+	}
+	l.mutex.RUnlock()
+	return connPair
+}
+
+func (l *LBConnectionPairMgr) GetAllTargetConnPairs() map[*TargetConnection]*NodeConnection {
+	connPair := make(map[*TargetConnection]*NodeConnection)
+	l.mutex.RLock()
+	for k, v := range l.targetConnToNodeConnMap {
+		connPair[k] = v
+	}
+	l.mutex.RUnlock()
+	return connPair
 }
 
 func (l *LBConnectionPairMgr) ResetReadWriteBytes1m() {
