@@ -9,26 +9,6 @@ import (
 	"net/http"
 )
 
-type ConnectionPairInfo struct {
-	NodeConnFrom              string
-	NodeConnTo                string
-	NodeReadSpeedPeriod1m     float64
-	NodeWriteSpeedPeriod1m    float64
-	NodeReadSpeedPeriod5m     float64
-	NodeWriteSpeedPeriod5m    float64
-	NodeReadSpeedPeriod30m    float64
-	NodeWriteSpeedPeriod30m   float64
-	TargetConnFrom            string
-	TargetConnTo              string
-	TargetReadSpeedPeriod1m   float64
-	TargetWriteSpeedPeriod1m  float64
-	TargetReadSpeedPeriod5m   float64
-	TargetWriteSpeedPeriod5m  float64
-	TargetReadSpeedPeriod30m  float64
-	TargetWriteSpeedPeriod30m float64
-	TargetId                  string
-}
-
 type Service struct {
 }
 
@@ -141,7 +121,7 @@ func (s *Service) AddTargetInfo(r *http.Request, args *LBTargetCopy, reply *inte
 	return nil
 }
 
-func (s *Service) GetTargetConnectPairsInfo(r *http.Request, args *string, reply *interface{}) error {
+func (s *Service) GetTargetConnectPairsInfo(r *http.Request, args *string, reply *[]ConnectionPairStatInfo) error {
 	targetId := CalcTargetId(*args)
 	lbTarget := LBTargetsMgrP.Get(targetId)
 	if lbTarget == nil {
@@ -150,15 +130,21 @@ func (s *Service) GetTargetConnectPairsInfo(r *http.Request, args *string, reply
 
 	connPair := LBConnectionPairMgrP.GetTargetConnPairsByTargetId(targetId)
 	for k, v := range connPair {
-
+		statInfo := GetConnectionPairStatInfo(v, k)
+		if statInfo != nil {
+			*reply = append(*reply, *statInfo)
+		}
 	}
 	return nil
 }
 
-func (s *Service) GetAllConnectPairsInfo(r *http.Request, args *interface{}, reply *interface{}) error {
+func (s *Service) GetAllConnectPairsInfo(r *http.Request, args *interface{}, reply *[]ConnectionPairStatInfo) error {
 	connPair := LBConnectionPairMgrP.GetAllTargetConnPairs()
 	for k, v := range connPair {
-
+		statInfo := GetConnectionPairStatInfo(v, k)
+		if statInfo != nil {
+			*reply = append(*reply, *statInfo)
+		}
 	}
 	return nil
 }

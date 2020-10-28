@@ -422,6 +422,60 @@ func (l *LBConnectionPairMgr) Destroy() {
 	l.targetConnToNodeConnMap = nil
 }
 
+type ConnectionPairStatInfo struct {
+	NodeConnFrom          string  `json:"nodeConnFrom"`
+	NodeConnTo            string  `json:"nodeConnTo"`
+	NodeReadSpeed1Min     float32 `json:"nodeReadSpeed1Min"`
+	NodeWriteSpeed1Min    float32 `json:"nodeWriteSpeed1Min"`
+	NodeReadSpeed5Min     float32 `json:"nodeReadSpeed5Min"`
+	NodeWriteSpeed5Min    float32 `json:"nodeWriteSpeed5Min"`
+	NodeReadSpeed30Min    float32 `json:"nodeReadSpeed30Min"`
+	NodeWriteSpeed30Min   float32 `json:"nodeWriteSpeed30Min"`
+	TargetConnFrom        string  `json:"targetConnFrom"`
+	TargetConnTo          string  `json:"targetConnTo"`
+	TargetReadSpeed1Min   float32 `json:"targetReadSpeed1Min"`
+	TargetWriteSpeed1Min  float32 `json:"targetWriteSpeed1Min"`
+	TargetReadSpeed5Min   float32 `json:"targetReadSpeed5Min"`
+	TargetWriteSpeed5Min  float32 `json:"targetWriteSpeed5Min"`
+	TargetReadSpeed30Min  float32 `json:"targetReadSpeed30Min"`
+	TargetWriteSpeed30Min float32 `json:"targetWriteSpeed30Min"`
+	TargetId              string  `json:"targetId"`
+}
+
+func GetConnectionPairStatInfo(nodeConn *NodeConnection, targetConn *TargetConnection) *ConnectionPairStatInfo {
+	statInfo := new(ConnectionPairStatInfo)
+
+	nodeConnRaw := nodeConn.GetConnection()
+	if nodeConnRaw == nil {
+		return nil
+	}
+	targetConnRaw := targetConn.GetConnection()
+	if targetConnRaw == nil {
+		return nil
+	}
+
+	statInfo.NodeConnFrom = nodeConnRaw.RemoteAddr().String()
+	statInfo.NodeConnTo = nodeConnRaw.LocalAddr().String()
+	statInfo.NodeReadSpeed1Min = float32(nodeConn.readBytes1m) * 8 * 1e9 / float32(time.Now().Sub(nodeConn.periodStartTime1m).Nanoseconds())
+	statInfo.NodeReadSpeed5Min = float32(nodeConn.readBytes5m) * 8 * 1e9 / float32(time.Now().Sub(nodeConn.periodStartTime1m).Nanoseconds())
+	statInfo.NodeReadSpeed30Min = float32(nodeConn.readBytes30m) * 8 * 1e9 / float32(time.Now().Sub(nodeConn.periodStartTime1m).Nanoseconds())
+	statInfo.NodeWriteSpeed1Min = float32(nodeConn.writeBytes1m) * 8 * 1e9 / float32(time.Now().Sub(nodeConn.periodStartTime1m).Nanoseconds())
+	statInfo.NodeWriteSpeed5Min = float32(nodeConn.writeBytes5m) * 8 * 1e9 / float32(time.Now().Sub(nodeConn.periodStartTime1m).Nanoseconds())
+	statInfo.NodeWriteSpeed30Min = float32(nodeConn.writeBytes30m) * 8 * 1e9 / float32(time.Now().Sub(nodeConn.periodStartTime1m).Nanoseconds())
+
+	statInfo.TargetConnFrom = targetConnRaw.LocalAddr().String()
+	statInfo.TargetConnTo = targetConnRaw.RemoteAddr().String()
+	statInfo.TargetReadSpeed1Min = float32(targetConn.readBytes1m) * 8 * 1e9 / float32(time.Now().Sub(targetConn.periodStartTime1m).Nanoseconds())
+	statInfo.TargetReadSpeed5Min = float32(targetConn.readBytes5m) * 8 * 1e9 / float32(time.Now().Sub(targetConn.periodStartTime1m).Nanoseconds())
+	statInfo.TargetReadSpeed30Min = float32(targetConn.readBytes30m) * 8 * 1e9 / float32(time.Now().Sub(targetConn.periodStartTime1m).Nanoseconds())
+	statInfo.TargetWriteSpeed1Min = float32(targetConn.writeBytes1m) * 8 * 1e9 / float32(time.Now().Sub(targetConn.periodStartTime1m).Nanoseconds())
+	statInfo.TargetWriteSpeed5Min = float32(targetConn.writeBytes5m) * 8 * 1e9 / float32(time.Now().Sub(targetConn.periodStartTime1m).Nanoseconds())
+	statInfo.TargetWriteSpeed30Min = float32(targetConn.writeBytes30m) * 8 * 1e9 / float32(time.Now().Sub(targetConn.periodStartTime1m).Nanoseconds())
+	statInfo.TargetId = targetConn.targetId
+
+	return statInfo
+}
+
 func startMaintainLoop(g goroutine_mgr.Goroutine) {
 	defer g.OnQuit()
 
