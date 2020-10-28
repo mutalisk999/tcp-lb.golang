@@ -47,7 +47,7 @@ func handleTcpProxyConn(g goroutine_mgr.Goroutine, a interface{}) {
 		}
 
 	} else {
-		targetId := CalcTargetId(targetCopy.EndPointConn)
+		targetId := calcTargetId(targetCopy.EndPointConn)
 
 		var nodeConn NodeConnection
 		nodeConn.Initialise(conn, LBNodeP.timeout)

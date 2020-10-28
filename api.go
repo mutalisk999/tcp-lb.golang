@@ -23,7 +23,7 @@ func (s *Service) GetTargetsInfo(r *http.Request, args *interface{}, reply *[]LB
 }
 
 func (s *Service) SetTargetEnable(r *http.Request, args *string, reply *interface{}) error {
-	targetId := CalcTargetId(*args)
+	targetId := calcTargetId(*args)
 	lbTarget := LBTargetsMgrP.Get(targetId)
 	if lbTarget == nil {
 		return errors.New("invalid args, can not find this targetId")
@@ -33,12 +33,22 @@ func (s *Service) SetTargetEnable(r *http.Request, args *string, reply *interfac
 		return nil
 	} else {
 		lbTarget.SetActive(true)
+
+		LBConfigMutex.Lock()
+		for idx, _ := range LBConfig.Targets {
+			if LBConfig.Targets[idx].ConnEndPoint == *args {
+				LBConfig.Targets[idx].Active = true
+			}
+		}
+		saveConfig(&LBConfig)
+		LBConfigMutex.Unlock()
+
 		return nil
 	}
 }
 
 func (s *Service) SetTargetDisable(r *http.Request, args *string, reply *interface{}) error {
-	targetId := CalcTargetId(*args)
+	targetId := calcTargetId(*args)
 	lbTarget := LBTargetsMgrP.Get(targetId)
 	if lbTarget == nil {
 		return errors.New("invalid args, can not find this target endpoint")
@@ -60,12 +70,22 @@ func (s *Service) SetTargetDisable(r *http.Request, args *string, reply *interfa
 				_ = nodeConn.Close()
 			}
 		}
+
+		LBConfigMutex.Lock()
+		for idx, _ := range LBConfig.Targets {
+			if LBConfig.Targets[idx].ConnEndPoint == *args {
+				LBConfig.Targets[idx].Active = false
+			}
+		}
+		saveConfig(&LBConfig)
+		LBConfigMutex.Unlock()
+
 		return nil
 	}
 }
 
 func (s *Service) SetTargetInfo(r *http.Request, args *LBTargetCopy, reply *interface{}) error {
-	targetId := CalcTargetId(args.EndPointConn)
+	targetId := calcTargetId(args.EndPointConn)
 	targetEndPoint := args.EndPointConn
 	targetActive := args.Active
 	targetMaxConn := args.MaxConnCount
@@ -99,15 +119,32 @@ func (s *Service) SetTargetInfo(r *http.Request, args *LBTargetCopy, reply *inte
 		}
 	}
 	lbTarget.Update(targetEndPoint, targetActive, targetMaxConn, targetTimeOut)
+
+	LBConfigMutex.Lock()
+	for idx, _ := range LBConfig.Targets {
+		if LBConfig.Targets[idx].ConnEndPoint == args.EndPointConn {
+			LBConfig.Targets[idx].ConnEndPoint = targetEndPoint // not change
+			LBConfig.Targets[idx].Active = targetActive
+			LBConfig.Targets[idx].MaxConn = targetMaxConn
+			LBConfig.Targets[idx].Timeout = targetTimeOut
+		}
+	}
+	saveConfig(&LBConfig)
+	LBConfigMutex.Unlock()
+
 	return nil
 }
 
 func (s *Service) AddTargetInfo(r *http.Request, args *LBTargetCopy, reply *interface{}) error {
-	targetId := CalcTargetId(args.EndPointConn)
+	targetId := calcTargetId(args.EndPointConn)
 	targetEndPoint := args.EndPointConn
 	targetActive := args.Active
 	targetMaxConn := args.MaxConnCount
 	targetTimeOut := args.Timeout
+
+	if !verifyEndPointStr(targetEndPoint) {
+		return errors.New("invalid args: wrong target endpoint")
+	}
 
 	lbTarget := LBTargetsMgrP.Get(targetId)
 	if lbTarget != nil {
@@ -118,11 +155,61 @@ func (s *Service) AddTargetInfo(r *http.Request, args *LBTargetCopy, reply *inte
 	lbTarget.Initialise(targetEndPoint, targetActive, targetMaxConn, targetTimeOut)
 
 	LBTargetsMgrP.Set(targetId, lbTarget)
+
+	LBConfigMutex.Lock()
+	LBConfig.Targets = append(LBConfig.Targets, TargetConfig{targetEndPoint, targetMaxConn,
+		targetTimeOut, targetActive})
+	saveConfig(&LBConfig)
+	LBConfigMutex.Unlock()
+
+	return nil
+}
+
+func (s *Service) DelTargetInfo(r *http.Request, args *string, reply *interface{}) error {
+	targetId := calcTargetId(*args)
+	lbTarget := LBTargetsMgrP.Get(targetId)
+	if lbTarget == nil {
+		return errors.New("invalid args, can not find this target endpoint")
+	}
+	LBTargetsMgrP.Delete(targetId)
+
+	active := lbTarget.GetActive()
+	if !active {
+		return nil
+	} else {
+		connPair := LBConnectionPairMgrP.GetTargetConnPairsByTargetId(targetId)
+		for k, v := range connPair {
+			LBConnectionPairMgrP.RemoveByTargetConn(k)
+			targetConn := k.GetConnection()
+			if targetConn != nil {
+				_ = targetConn.Close()
+			}
+			nodeConn := v.GetConnection()
+			if nodeConn != nil {
+				_ = nodeConn.Close()
+			}
+		}
+	}
+
+	LBConfigMutex.Lock()
+	var idxFound = -1
+	for idx, _ := range LBConfig.Targets {
+		if LBConfig.Targets[idx].ConnEndPoint == *args {
+			idxFound = idx
+			break
+		}
+	}
+	if idxFound != -1 {
+		LBConfig.Targets = append(LBConfig.Targets[0:idxFound], LBConfig.Targets[idxFound+1:]...)
+		saveConfig(&LBConfig)
+	}
+	LBConfigMutex.Unlock()
+
 	return nil
 }
 
 func (s *Service) GetTargetConnectPairsInfo(r *http.Request, args *string, reply *[]ConnectionPairStatInfo) error {
-	targetId := CalcTargetId(*args)
+	targetId := calcTargetId(*args)
 	lbTarget := LBTargetsMgrP.Get(targetId)
 	if lbTarget == nil {
 		return errors.New("invalid args, can not find this target endpoint")
@@ -130,7 +217,7 @@ func (s *Service) GetTargetConnectPairsInfo(r *http.Request, args *string, reply
 
 	connPair := LBConnectionPairMgrP.GetTargetConnPairsByTargetId(targetId)
 	for k, v := range connPair {
-		statInfo := GetConnectionPairStatInfo(v, k)
+		statInfo := getConnectionPairStatInfo(v, k)
 		if statInfo != nil {
 			*reply = append(*reply, *statInfo)
 		}
@@ -141,7 +228,7 @@ func (s *Service) GetTargetConnectPairsInfo(r *http.Request, args *string, reply
 func (s *Service) GetAllConnectPairsInfo(r *http.Request, args *interface{}, reply *[]ConnectionPairStatInfo) error {
 	connPair := LBConnectionPairMgrP.GetAllTargetConnPairs()
 	for k, v := range connPair {
-		statInfo := GetConnectionPairStatInfo(v, k)
+		statInfo := getConnectionPairStatInfo(v, k)
 		if statInfo != nil {
 			*reply = append(*reply, *statInfo)
 		}

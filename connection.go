@@ -442,7 +442,7 @@ type ConnectionPairStatInfo struct {
 	TargetId              string  `json:"targetId"`
 }
 
-func GetConnectionPairStatInfo(nodeConn *NodeConnection, targetConn *TargetConnection) *ConnectionPairStatInfo {
+func getConnectionPairStatInfo(nodeConn *NodeConnection, targetConn *TargetConnection) *ConnectionPairStatInfo {
 	statInfo := new(ConnectionPairStatInfo)
 
 	nodeConnRaw := nodeConn.GetConnection()

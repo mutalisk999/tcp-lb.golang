@@ -44,7 +44,7 @@ func loadConfig(cfg *Config) {
 	configFileName, _ = filepath.Abs(configFileName)
 	Info.Printf("Load Config: %v", configFileName)
 
-	configFile, err := os.Open(configFileName)
+	configFile, err := os.OpenFile(configFileName, os.O_RDONLY, 0600)
 	if err != nil {
 		Error.Fatalf("Open File error: ", err.Error())
 	}
@@ -60,12 +60,13 @@ func loadConfig(cfg *Config) {
 func saveConfig(cfg *Config) {
 	Info.Printf("Save Config: %v", cfg.ConfigFileName)
 
-	configFile, err := os.Open(cfg.ConfigFileName)
+	configFile, err := os.OpenFile(cfg.ConfigFileName, os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		Error.Fatalf("Open File error: ", err.Error())
 	}
 	defer configFile.Close()
 	jsonParser := json.NewEncoder(configFile)
+	jsonParser.SetIndent("", "\t")
 	if err := jsonParser.Encode(&cfg); err != nil {
 		Error.Fatalf("Save Json Config error: ", err.Error())
 	}

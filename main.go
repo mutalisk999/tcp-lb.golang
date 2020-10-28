@@ -7,6 +7,9 @@ import (
 
 func initNode(c *Config) {
 	LBNodeP = new(LBNode)
+	if !verifyEndPointStr(c.Node.ListenEndPoint) {
+		Error.Fatalf("invalid node listen endpoint: [%s]", c.Node.ListenEndPoint)
+	}
 	LBNodeP.Initialise(c.Node.ListenEndPoint, c.Node.MaxConn, c.Node.Timeout)
 }
 
@@ -15,9 +18,12 @@ func initTargetsMgr(c *Config) {
 	LBTargetsMgrP.Initialise()
 	for _, t := range c.Targets {
 		targetP := new(LBTarget)
+		if !verifyEndPointStr(t.ConnEndPoint) {
+			Error.Fatalf("invalid target connect endpoint: [%s]", t.ConnEndPoint)
+		}
 		targetP.Initialise(t.ConnEndPoint, t.Active, t.MaxConn, t.Timeout)
 
-		targetId := CalcTargetId(t.ConnEndPoint)
+		targetId := calcTargetId(t.ConnEndPoint)
 		LBTargetsMgrP.Set(targetId, targetP)
 	}
 }
@@ -37,6 +43,10 @@ func initApplication(c *Config) {
 	initTargetsMgr(c)
 	initConnectionPairMgr()
 	initGoroutineMgr()
+
+	if !verifyEndPointStr(c.Api.ListenEndPoint) {
+		Error.Fatalf("invalid api listen endpoint: [%s]", c.Api.ListenEndPoint)
+	}
 
 	if LBConfig.Threads > 0 {
 		runtime.GOMAXPROCS(int(LBConfig.Threads))

@@ -129,7 +129,7 @@ func (l *LBTarget) DumpToLBTargetCopy() LBTargetCopy {
 	targetCopy.Active = l.active
 	targetCopy.Status = l.status
 	targetCopy.MaxConnCount = l.maxConnCount
-	targetId := CalcTargetId(targetCopy.EndPointConn)
+	targetId := calcTargetId(targetCopy.EndPointConn)
 	targetCopy.ConnCount = LBConnectionPairMgrP.GetTargetConnCountByTargetId(targetId)
 	targetCopy.Timeout = l.timeout
 	l.mutex.RUnlock()

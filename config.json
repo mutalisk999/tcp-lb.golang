@@ -1,7 +1,7 @@
 {
 	"threads": 4,
 	"log": {
-        "logSetLevel": 10
+		"logSetLevel": 10
 	},
 	"node": {
 		"listen": "0.0.0.0:8080",
@@ -9,6 +9,12 @@
 		"timeout": 60
 	},
 	"targets": [
+		{
+			"endpoint": "",
+			"maxConn": 4096,
+			"timeout": 60,
+			"active": true
+		},
 		{
 			"endpoint": "",
 			"maxConn": 4096,
