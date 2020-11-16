@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -42,16 +43,16 @@ func loadConfig(cfg *Config) {
 		configFileName = os.Args[1]
 	}
 	configFileName, _ = filepath.Abs(configFileName)
-	Info.Printf("Load Config: %v", configFileName)
+	log.Printf("Load Config: %v", configFileName)
 
 	configFile, err := os.OpenFile(configFileName, os.O_RDONLY, 0600)
 	if err != nil {
-		Error.Fatalf("Open File error: ", err.Error())
+		log.Fatalf("Open File error: ", err.Error())
 	}
 	defer configFile.Close()
 	jsonParser := json.NewDecoder(configFile)
 	if err := jsonParser.Decode(&cfg); err != nil {
-		Error.Fatalf("Load Json Config error: ", err.Error())
+		log.Fatalf("Load Json Config error: ", err.Error())
 	}
 
 	cfg.ConfigFileName = configFileName

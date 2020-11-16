@@ -55,11 +55,12 @@ func initApplication(c *Config) {
 }
 
 func main() {
+	loadConfig(&LBConfig)
+
 	iLogFile := "info.log"
 	eLogFile := "error.log"
-	InitLog(iLogFile, eLogFile, DEBUG)
+	InitLog(iLogFile, eLogFile, LBConfig.Log.LogSetLevel)
 
-	loadConfig(&LBConfig)
 	initApplication(&LBConfig)
 
 	LBGoroutineManagerP.GoroutineCreateP1("tcp_proxy_listener", startTcpProxy, &LBConfig)

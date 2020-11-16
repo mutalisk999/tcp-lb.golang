@@ -241,7 +241,7 @@ func handleNodeData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 			if err == io.EOF {
 				Info.Printf("Closed by remote: %s", conn.RemoteAddr().String())
 			} else {
-				Error.Printf("Read from %s error: %s", conn.RemoteAddr().String(), err.Error())
+				Warn.Printf("Read from %s error: %s", conn.RemoteAddr().String(), err.Error())
 			}
 			break
 		}
@@ -250,7 +250,7 @@ func handleNodeData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 		_ = connTarget.SetWriteDeadline(time.Now().Add(time.Duration(timeoutTarget) * time.Second))
 		s, err := connTarget.Write(buf[0:n])
 		if err != nil {
-			Error.Printf("Write to %s error: %s", connTarget.RemoteAddr().String(), err.Error())
+			Warn.Printf("Write to %s error: %s", connTarget.RemoteAddr().String(), err.Error())
 			break
 		}
 		ct.IncWriteBytes(uint64(s))
@@ -291,7 +291,7 @@ func handleTargetData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 			if err == io.EOF {
 				Info.Printf("Closed by remote: %s", connTarget.RemoteAddr().String())
 			} else {
-				Error.Printf("Read from %s error: %s", connTarget.RemoteAddr().String(), err.Error())
+				Warn.Printf("Read from %s error: %s", connTarget.RemoteAddr().String(), err.Error())
 			}
 			break
 		}
@@ -300,7 +300,7 @@ func handleTargetData(g goroutine_mgr.Goroutine, a interface{}, b interface{}) {
 		_ = conn.SetWriteDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
 		s, err := conn.Write(buf[0:n])
 		if err != nil {
-			Error.Printf("Write to %s error: %s", conn.RemoteAddr().String(), err.Error())
+			Warn.Printf("Write to %s error: %s", conn.RemoteAddr().String(), err.Error())
 			break
 		}
 		c.IncWriteBytes(uint64(s))
