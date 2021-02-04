@@ -61,6 +61,9 @@ func main() {
 	eLogFile := "error.log"
 	InitLog(iLogFile, eLogFile, LBConfig.Log.LogSetLevel)
 
+	// set rlimit nofile value
+	SetRLimit(100000)
+
 	initApplication(&LBConfig)
 
 	LBGoroutineManagerP.GoroutineCreateP1("tcp_proxy_listener", startTcpProxy, &LBConfig)
