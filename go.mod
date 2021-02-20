@@ -1,4 +1,4 @@
-module github.com/mutalisk999/tcp_load_balancer
+module github.com/mutalisk999/tcp_lb.go
 
 go 1.14
 
