@@ -1,4 +1,4 @@
-module github.com/mutalisk999/tcp_lb.go
+module github.com/mutalisk999/tcp_lb.golang
 
 go 1.14
 
