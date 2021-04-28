@@ -7,6 +7,10 @@
 		"listen": "0.0.0.0:8080",
 		"maxConn": 8192,
 		"timeout": 60
+		"enableLocalEndpoints": false,
+		"localEndpoints": [
+			"172.17.196.229:0"
+		]
 	},
 	"targets": [
 		{

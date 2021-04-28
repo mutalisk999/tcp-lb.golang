@@ -13,3 +13,5 @@ var LBTargetsMgrP *LBTargetsMgr
 var LBConnectionPairMgrP *LBConnectionPairMgr
 
 var LBGoroutineManagerP *goroutine_mgr.GoroutineManager
+
+var LBNodeLocalSelector uint64 = 0

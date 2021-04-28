@@ -4,6 +4,7 @@ import (
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"net"
 	"sort"
+	"sync/atomic"
 )
 
 func handleTcpProxyConn(g goroutine_mgr.Goroutine, a interface{}) {
@@ -28,7 +29,25 @@ func handleTcpProxyConn(g goroutine_mgr.Goroutine, a interface{}) {
 		if err != nil {
 			Error.Fatalf("Error: %v", err)
 		}
-		connToTarget, err = net.DialTCP("tcp", nil, targetAddr)
+
+		if !LBConfig.Node.EnableLocalEndpoints {
+			connToTarget, err = net.DialTCP("tcp", nil, targetAddr)
+		} else {
+			if len(LBConfig.Node.LocalEndpoints) < 1 {
+				Error.Fatalf("len(LBConfig.Node.LocalEndpoints) < 1")
+			}
+
+			atomic.AddUint64(&LBNodeLocalSelector, 1)
+			localAddrStr := LBConfig.Node.LocalEndpoints[LBNodeLocalSelector%uint64(len(LBConfig.Node.LocalEndpoints))]
+
+			localAddr, err := net.ResolveTCPAddr("tcp", localAddrStr)
+			if err != nil {
+				Error.Fatalf("Error: %v", err)
+			}
+
+			connToTarget, err = net.DialTCP("tcp", localAddr, targetAddr)
+		}
+
 		if err != nil {
 			Warn.Printf("Can not connect to target: %s", t.EndPointConn)
 			continue

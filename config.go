@@ -12,9 +12,11 @@ type LogConfig struct {
 }
 
 type NodeConfig struct {
-	ListenEndPoint string `json:"listen"`
-	MaxConn        uint32 `json:"maxConn"`
-	Timeout        uint32 `json:"timeout"`
+	ListenEndPoint       string   `json:"listen"`
+	MaxConn              uint32   `json:"maxConn"`
+	Timeout              uint32   `json:"timeout"`
+	EnableLocalEndpoints bool     `json:"enableLocalEndpoints"`
+	LocalEndpoints       []string `json:"localEndpoints"`
 }
 
 type TargetConfig struct {
