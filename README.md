@@ -1,9 +1,9 @@
-# tcp_lb.golang
+# tcp-lb.golang
 
 
 ```
-git clone https://github.com/mutalisk999/tcp_lb.golang.git
+git clone https://github.com/mutalisk999/tcp-lb.golang.git
 
-cd tcp_lb.golang
+cd tcp-lb.golang
 go build
 ```
